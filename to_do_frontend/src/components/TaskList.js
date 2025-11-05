@@ -7,7 +7,7 @@ import TaskItem from './TaskItem';
  */
 export default function TaskList({ tasks = [], loading, onToggleComplete, onUpdateTask, onDeleteTask }) {
   if (loading) {
-    return <div className="loading" role="status" aria-live="polite">Loading tasks…</div>;
+    return <div className="loading" role="status" aria-live="polite" aria-busy="true">Loading tasks…</div>;
   }
 
   if (!tasks.length) {

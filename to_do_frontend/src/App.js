@@ -37,7 +37,7 @@ function App() {
         onToggleTheme={toggleTheme}
       />
 
-      <main className="container">
+      <main className="container" role="main" aria-busy={loading ? 'true' : 'false'}>
         <section className="surface card">
           <TaskInput
             onAdd={addTask}
@@ -60,7 +60,7 @@ function App() {
         </section>
       </main>
 
-      <footer className="footer">
+      <footer className="footer" role="contentinfo">
         <span className="muted">
           Built with React and fetch. Theme is {theme}.
           {wsUrl ? ` Realtime endpoint configured.` : ''}

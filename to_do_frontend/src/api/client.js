@@ -41,15 +41,20 @@ export async function apiRequest(path, { method = 'GET', body, headers = {}, sig
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     const finalSignal = signal || controller.signal;
     try {
+      const computedHeaders = {
+        Accept: 'application/json',
+        ...headers,
+      };
+      const hasBody = body !== undefined;
+      if (hasBody) {
+        computedHeaders['Content-Type'] = 'application/json';
+      }
+
       const res = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          ...headers,
-        },
+        headers: computedHeaders,
         credentials: getEnableCredentials() ? 'include' : 'same-origin',
-        body: body !== undefined ? JSON.stringify(body) : undefined,
+        body: hasBody ? JSON.stringify(body) : undefined,
         signal: finalSignal,
       });
 
@@ -83,19 +88,18 @@ export async function apiRequest(path, { method = 'GET', body, headers = {}, sig
           continue;
         }
 
-        if (isJson) {
-          // Return null on failure to keep UI non-intrusive
-          return null;
-        }
+        clearTimeout(timer);
         return null;
       }
 
       if (isJson) {
+        const json = await res.json();
         clearTimeout(timer);
-        return await res.json();
+        return json;
       }
+      const text = await res.text();
       clearTimeout(timer);
-      return await res.text();
+      return text;
     } catch (e) {
       // Network error (Failed to fetch, CORS, abort, etc.)
       lastError = e;
