@@ -1,47 +1,65 @@
-import React, { useState, useEffect } from 'react';
-import logo from './logo.svg';
+import React, { useEffect, useState } from 'react';
 import './App.css';
+import './styles/theme.css';
+import './index.css';
+import Header from './components/Header';
+import TaskInput from './components/TaskInput';
+import TaskList from './components/TaskList';
+import { useTasks } from './state/useTasks';
 
-// PUBLIC_INTERFACE
+/**
+ * PUBLIC_INTERFACE
+ * App
+ * Root component for the To-Do application. Assembles the header, input, and list.
+ */
 function App() {
   const [theme, setTheme] = useState('light');
+  const { tasks, loading, error, addTask, updateTask, deleteTask, toggleComplete, refresh } = useTasks();
 
-  // Effect to apply theme to document element
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
   // PUBLIC_INTERFACE
-  const toggleTheme = () => {
-    setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
-  };
+  const toggleTheme = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'));
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <button 
-          className="theme-toggle" 
-          onClick={toggleTheme}
-          aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-        >
-          {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
-        </button>
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <p>
-          Current theme: <strong>{theme}</strong>
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div className="app-root">
+      <Header
+        title="My To-Do List"
+        totalCount={tasks.length}
+        completedCount={tasks.filter(t => t.completed).length}
+        onRefresh={refresh}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
+
+      <main className="container">
+        <section className="surface card">
+          <TaskInput
+            onAdd={addTask}
+            disabled={loading}
+          />
+
+          {error && (
+            <div role="alert" className="alert error" aria-live="assertive">
+              {String(error)}
+            </div>
+          )}
+
+          <TaskList
+            tasks={tasks}
+            loading={loading}
+            onToggleComplete={toggleComplete}
+            onUpdateTask={updateTask}
+            onDeleteTask={deleteTask}
+          />
+        </section>
+      </main>
+
+      <footer className="footer">
+        <span className="muted">Built with React and fetch. Theme is {theme}.</span>
+      </footer>
     </div>
   );
 }
