@@ -1,4 +1,4 @@
-import { getApiBase } from '../utils/env';
+import { getApiBase, getEnableCredentials } from '../utils/env';
 
 /**
  * Simple fetch client wrapper for JSON APIs.
@@ -7,9 +7,11 @@ import { getApiBase } from '../utils/env';
 
 // PUBLIC_INTERFACE
 export async function apiRequest(path, { method = 'GET', body, headers = {}, signal, timeoutMs = 10000 } = {}) {
-  /** Make an HTTP request to the backend API using fetch.
-   * path: string path (e.g., '/tasks')
-   * options: { method, body, headers, signal, timeoutMs }
+  /**
+   * Make an HTTP request to the backend API using fetch.
+   * - path: string path (e.g., '/tasks')
+   * - options: { method, body, headers, signal, timeoutMs }
+   * Uses env-resolved API base and a single env switch to enable credentials for cross-site cookies.
    * Returns parsed JSON or throws an Error with message and status.
    */
   const base = getApiBase();
@@ -27,6 +29,7 @@ export async function apiRequest(path, { method = 'GET', body, headers = {}, sig
         Accept: 'application/json',
         ...headers,
       },
+      credentials: getEnableCredentials() ? 'include' : 'same-origin',
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: finalSignal,
     });

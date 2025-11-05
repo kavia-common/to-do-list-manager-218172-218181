@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import './App.css';
 import './styles/theme.css';
 import './index.css';
@@ -6,6 +6,7 @@ import Header from './components/Header';
 import TaskInput from './components/TaskInput';
 import TaskList from './components/TaskList';
 import { useTasks } from './state/useTasks';
+import { getWsUrl } from './utils/env';
 
 /**
  * PUBLIC_INTERFACE
@@ -15,6 +16,7 @@ import { useTasks } from './state/useTasks';
 function App() {
   const [theme, setTheme] = useState('light');
   const { tasks, loading, error, addTask, updateTask, deleteTask, toggleComplete, refresh } = useTasks();
+  const wsUrl = useMemo(() => getWsUrl(), []);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -58,7 +60,10 @@ function App() {
       </main>
 
       <footer className="footer">
-        <span className="muted">Built with React and fetch. Theme is {theme}.</span>
+        <span className="muted">
+          Built with React and fetch. Theme is {theme}.
+          {wsUrl ? ` Realtime endpoint configured.` : ''}
+        </span>
       </footer>
     </div>
   );
