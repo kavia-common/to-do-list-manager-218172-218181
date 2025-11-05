@@ -6,35 +6,57 @@ export function useTasks() {
   /**
    * Manages tasks list with loading/error state and provides CRUD handlers.
    * Minimal optimistic updates with rollback on failure.
+   * On network failures, avoid loud UI errors and surface subtle empty states.
    */
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Keep an internal error for diagnostics but don't render loud banners by default
   const [error, setError] = useState(null);
   const mounted = useRef(true);
-
-  useEffect(() => {
-    mounted.current = true;
-    refresh();
-    return () => { mounted.current = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const safeSet = useCallback((setter) => {
     if (mounted.current) setter();
   }, []);
 
+  // Background refresh with quiet retry/backoff
+  const backgroundRefresh = useCallback(async () => {
+    const maxAttempts = 2;
+    const baseDelayMs = 300;
+    for (let i = 0; i <= maxAttempts; i++) {
+      const data = await listTasks();
+      if (Array.isArray(data)) {
+        safeSet(() => setTasks(data));
+        return;
+      }
+      if (i < maxAttempts) {
+        await new Promise((r) => setTimeout(r, baseDelayMs * Math.pow(2, i)));
+      }
+    }
+  }, [safeSet]);
+
+  useEffect(() => {
+    mounted.current = true;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      const data = await listTasks();
+      safeSet(() => setTasks(Array.isArray(data) ? data : []));
+      safeSet(() => setLoading(false));
+      // If initial load failed (null), schedule a background retry quietly
+      if (!Array.isArray(data)) {
+        backgroundRefresh();
+      }
+    })();
+
+    return () => { mounted.current = false; };
+  }, [backgroundRefresh, safeSet]);
+
   // PUBLIC_INTERFACE
   const refresh = useCallback(async () => {
     setLoading(true);
-    setError(null);
-    try {
-      const data = await listTasks();
-      safeSet(() => setTasks(Array.isArray(data) ? data : []));
-    } catch (e) {
-      safeSet(() => setError(e?.message || 'Failed to load tasks'));
-    } finally {
-      safeSet(() => setLoading(false));
-    }
+    const data = await listTasks();
+    safeSet(() => setTasks(Array.isArray(data) ? data : []));
+    safeSet(() => setLoading(false));
   }, [safeSet]);
 
   // PUBLIC_INTERFACE
@@ -43,12 +65,13 @@ export function useTasks() {
     const tempId = `tmp-${Date.now()}`;
     const optimisticTask = { id: tempId, title: title.trim(), completed: false };
     setTasks((prev) => [optimisticTask, ...prev]);
-    try {
-      const created = await createTask(title.trim());
+    const created = await createTask(title.trim());
+    if (created && created.id !== undefined) {
       setTasks((prev) => prev.map(t => (t.id === tempId ? created : t)));
-    } catch (e) {
+    } else {
+      // rollback quietly
       setTasks((prev) => prev.filter(t => t.id !== tempId));
-      setError(e?.message || 'Failed to add task');
+      setError('Failed to add task');
     }
   }, []);
 
@@ -57,12 +80,13 @@ export function useTasks() {
     if (!id) return;
     const prev = tasks;
     setTasks((cur) => cur.map(t => (t.id === id ? { ...t, ...updates } : t)));
-    try {
-      const updated = await apiUpdateTask(id, updates);
+    const updated = await apiUpdateTask(id, updates);
+    if (updated && updated.id !== undefined) {
       setTasks((cur) => cur.map(t => (t.id === id ? updated : t)));
-    } catch (e) {
-      setTasks(prev); // rollback
-      setError(e?.message || 'Failed to update task');
+    } else {
+      // rollback quietly
+      setTasks(prev);
+      setError('Failed to update task');
     }
   }, [tasks]);
 
@@ -71,11 +95,11 @@ export function useTasks() {
     if (!id) return;
     const prev = tasks;
     setTasks((cur) => cur.filter(t => t.id !== id));
-    try {
-      await apiDeleteTask(id);
-    } catch (e) {
-      setTasks(prev); // rollback
-      setError(e?.message || 'Failed to delete task');
+    const res = await apiDeleteTask(id);
+    if (res === null) {
+      // rollback quietly
+      setTasks(prev);
+      setError('Failed to delete task');
     }
   }, [tasks]);
 
@@ -86,18 +110,18 @@ export function useTasks() {
     const nextCompleted = !task.completed;
     const prev = tasks;
     setTasks((cur) => cur.map(t => (t.id === id ? { ...t, completed: nextCompleted } : t)));
-    try {
-      await apiToggleComplete(id, nextCompleted);
-    } catch (e) {
-      setTasks(prev); // rollback
-      setError(e?.message || 'Failed to toggle complete');
+    const res = await apiToggleComplete(id, nextCompleted);
+    if (res === null) {
+      // rollback quietly
+      setTasks(prev);
+      setError('Failed to toggle complete');
     }
   }, [tasks]);
 
   return {
     tasks,
     loading,
-    error,
+    error, // kept for potential verbose mode display
     refresh,
     addTask,
     updateTask,

@@ -11,6 +11,7 @@ export default function TaskList({ tasks = [], loading, onToggleComplete, onUpda
   }
 
   if (!tasks.length) {
+    // Subtle, non-intrusive empty state used both for fresh apps and temporary offline/fetch failures
     return <div className="helper" role="note">No tasks yet. Add your first task above.</div>;
   }
 

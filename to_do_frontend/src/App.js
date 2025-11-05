@@ -6,7 +6,7 @@ import Header from './components/Header';
 import TaskInput from './components/TaskInput';
 import TaskList from './components/TaskList';
 import { useTasks } from './state/useTasks';
-import { getWsUrl } from './utils/env';
+import { getWsUrl, isVerboseErrorsEnabled } from './utils/env';
 
 /**
  * PUBLIC_INTERFACE
@@ -17,6 +17,7 @@ function App() {
   const [theme, setTheme] = useState('light');
   const { tasks, loading, error, addTask, updateTask, deleteTask, toggleComplete, refresh } = useTasks();
   const wsUrl = useMemo(() => getWsUrl(), []);
+  const showVerbose = isVerboseErrorsEnabled();
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -43,7 +44,7 @@ function App() {
             disabled={loading}
           />
 
-          {error && (
+          {showVerbose && error && (
             <div role="alert" className="alert error" aria-live="assertive">
               {String(error)}
             </div>

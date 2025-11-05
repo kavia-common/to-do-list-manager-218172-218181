@@ -1,24 +1,26 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getApiBase, getHealthcheckPath } from '../utils/env';
+import { getApiBase, getHealthcheckPath, isHealthcheckBannerEnabled } from '../utils/env';
 
 /**
  * Header component with title, counters, refresh and theme toggle.
  * PUBLIC_INTERFACE
  */
 export default function Header({ title, totalCount = 0, completedCount = 0, onRefresh, theme, onToggleTheme }) {
-  // Optional, non-blocking healthcheck based on env.
+  // Optional, non-blocking healthcheck based on env and feature flag.
   const healthPath = getHealthcheckPath();
   const apiBase = useMemo(() => getApiBase(), []);
   const [health, setHealth] = useState({ status: 'idle' }); // idle | ok | fail
+  const showHealthBanner = isHealthcheckBannerEnabled();
 
   useEffect(() => {
     let cancelled = false;
-    if (!healthPath) return;
+    // Do not make noisy calls if banner isn't explicitly enabled or no health path/base
+    if (!showHealthBanner || !healthPath || !apiBase) return;
 
     const controller = new AbortController();
     const url = `${apiBase}${healthPath.startsWith('/') ? '' : '/'}${healthPath}`;
 
-    // Fire and forget, don't block UI.
+    // Fire and forget; be silent on errors.
     fetch(url, { method: 'GET', signal: controller.signal })
       .then((res) => {
         if (!cancelled) setHealth({ status: res.ok ? 'ok' : 'fail' });
@@ -31,7 +33,7 @@ export default function Header({ title, totalCount = 0, completedCount = 0, onRe
       cancelled = true;
       controller.abort();
     };
-  }, [apiBase, healthPath]);
+  }, [apiBase, healthPath, showHealthBanner]);
 
   return (
     <header className="header" role="banner">
@@ -68,7 +70,7 @@ export default function Header({ title, totalCount = 0, completedCount = 0, onRe
         </div>
       </div>
 
-      {healthPath && (
+      {showHealthBanner && healthPath && (
         <div className="container" aria-live="polite" style={{ marginTop: 8 }}>
           <div
             className="helper"
